@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, MapPin, Linkedin, Send } from 'lucide-react';
+import { Mail, MapPin, Linkedin, Send, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const Contact: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -9,6 +9,9 @@ const Contact: React.FC = () => {
     message: ''
   });
 
+  // State to handle the submission status
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
@@ -16,23 +19,39 @@ const Contact: React.FC = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setStatus('sending');
     
-    // Construct mailto link
-    const subject = encodeURIComponent(`Portfolio Inquiry: ${formData.projectType} from ${formData.name}`);
-    const body = encodeURIComponent(
-      `Name: ${formData.name}\n` +
-      `Email: ${formData.email}\n` +
-      `Project Type: ${formData.projectType}\n\n` +
-      `Message:\n${formData.message}`
-    );
-    
-    // Open email client
-    window.location.href = `mailto:xtemituro173@gmail.com?subject=${subject}&body=${body}`;
-    
-    // Reset form
-    setFormData({ name: '', email: '', projectType: 'Scriptwriting', message: '' });
+    // Using FormSubmit.co AJAX API to send email without opening mail client
+    try {
+      const response = await fetch("https://formsubmit.co/ajax/xtemituro173@gmail.com", {
+        method: "POST",
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          projectType: formData.projectType,
+          message: formData.message,
+          _subject: `New Portfolio Inquiry: ${formData.projectType} from ${formData.name}`
+        })
+      });
+
+      if (response.ok) {
+        setStatus('success');
+        setFormData({ name: '', email: '', projectType: 'Scriptwriting', message: '' });
+        // Reset success message after 5 seconds
+        setTimeout(() => setStatus('idle'), 5000); 
+      } else {
+        setStatus('error');
+      }
+    } catch (error) {
+      console.error("Error sending form:", error);
+      setStatus('error');
+    }
   };
 
   return (
@@ -78,7 +97,7 @@ const Contact: React.FC = () => {
                       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                     </svg>
                   }
-                  color="bg-green-600/20 hover:bg-green-600/40 border-green-500/30 text-green-400"
+                  color="bg-[#14a800]/20 hover:bg-[#14a800]/40 border-[#14a800]/30 text-[#14a800]"
                 />
                 <PlatformButton 
                   name="Upwork" 
@@ -188,9 +207,24 @@ const Contact: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full bg-cyan hover:bg-cyan-600 text-white font-bold py-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                disabled={status === 'sending' || status === 'success'}
+                className={`w-full font-bold py-4 rounded-lg transition-all flex items-center justify-center gap-2 ${
+                  status === 'success' 
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/50 cursor-default' 
+                    : status === 'error'
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30'
+                    : 'bg-cyan hover:bg-cyan-600 text-white'
+                }`}
               >
-                Send Message <Send className="w-5 h-5" />
+                {status === 'sending' ? (
+                  <>Sending... <Loader2 className="w-5 h-5 animate-spin" /></>
+                ) : status === 'success' ? (
+                  <>Message Sent! <CheckCircle2 className="w-5 h-5" /></>
+                ) : status === 'error' ? (
+                  <>Failed to Send. Try Again <AlertCircle className="w-5 h-5" /></>
+                ) : (
+                  <>Send Message <Send className="w-5 h-5" /></>
+                )}
               </button>
             </form>
           </div>
